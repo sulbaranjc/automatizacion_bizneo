@@ -117,3 +117,4 @@ with sync_playwright() as p:
     page.wait_for_timeout(9000)
 
     browser.close()
+# para ejecutar: python bizneo_cargar_dia_por_fecha.py
