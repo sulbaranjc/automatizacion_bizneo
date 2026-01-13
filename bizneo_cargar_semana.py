@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
 
-FECHA_LUNES = "2026-01-19"  # YYYY-MM-DD (DEBE ser lunes)
+FECHA_LUNES = "2026-01-12"  # YYYY-MM-DD (DEBE ser lunes)
 
 HORARIOS = {
 
@@ -139,3 +139,4 @@ with sync_playwright() as p:
 
     browser.close()
 # para ejecutar: python bizneo_cargar_semana.py
+# jsulbaran@ilerna.com

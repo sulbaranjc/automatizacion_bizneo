@@ -1,8 +1,13 @@
 from playwright.sync_api import sync_playwright, expect
 from datetime import datetime
 
+# =========================
+# CONFIGURACIÓN
+# =========================
+
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
-FECHA = "2026-01-09"
+
+FECHA = "2026-01-05"  # YYYY-MM-DD (Cambiar a la fecha deseada)
 
 HORARIOS = {
 
@@ -56,13 +61,28 @@ HORARIOS = {
     ],
 }
 
+# =========================
+# UTILIDADES
+# =========================
 
-def dia_semana(fecha_str):
+def dia_semana(fecha: datetime) -> str:
     dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
-    return dias[datetime.strptime(fecha_str, "%Y-%m-%d").weekday()]
+    return dias[fecha.weekday()]
 
-dia = dia_semana(FECHA)
+# =========================
+# SCRIPT PRINCIPAL
+# =========================
+
+fecha_actual = datetime.strptime(FECHA, "%Y-%m-%d")
+dia = dia_semana(fecha_actual)
+
+if dia not in HORARIOS:
+    print(f"⚠️  No hay horario configurado para {dia}")
+    exit(1)
+
 tramos = HORARIOS[dia]
+
+print(f"Cargando {dia} {FECHA}")
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
@@ -83,9 +103,9 @@ with sync_playwright() as p:
 
         if i > 0:
             form.locator('button[name="add"]').click()
-            expect(form.locator('input[name$="[start_at]"]')).to_have_count(i + 1)
-
-            # ⏱️ Esperar a que Bizneo autocomple­te la hora de inicio
+            expect(
+                form.locator('input[name$="[start_at]"]')
+            ).to_have_count(i + 1)
             page.wait_for_timeout(300)
 
         start = form.locator('input[name$="[start_at]"]').nth(i)
@@ -111,10 +131,11 @@ with sync_playwright() as p:
 
     # Forzar validación final
     page.locator("body").click()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(800)
 
     page.get_by_role("button", name="Guardar").click()
-    page.wait_for_timeout(9000)
+    page.wait_for_timeout(3000)
 
     browser.close()
 # para ejecutar: python bizneo_cargar_dia_por_fecha.py
+# jsulbaran@ilerna.com
