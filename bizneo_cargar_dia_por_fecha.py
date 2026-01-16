@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright, expect
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # =========================
 # CONFIGURACIÓN
@@ -7,7 +7,8 @@ from datetime import datetime
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
 
-FECHA = "2026-01-05"  # YYYY-MM-DD (Cambiar a la fecha deseada)
+
+FECHA = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")  # Día anterior al actual
 
 HORARIOS = {
 
