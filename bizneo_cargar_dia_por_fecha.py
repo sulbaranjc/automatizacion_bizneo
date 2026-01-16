@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
 
-
+# FECHA = "2026-01-16"  # Formato AAAA-MM-DD
 FECHA = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")  # Día anterior al actual
 
 HORARIOS = {
