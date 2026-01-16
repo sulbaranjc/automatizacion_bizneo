@@ -1,14 +1,12 @@
 from playwright.sync_api import sync_playwright, expect
 from datetime import datetime, timedelta
+import argparse
 
 # =========================
 # CONFIGURACIÓN
 # =========================
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
-
-# FECHA = "2026-01-16"  # Formato AAAA-MM-DD
-FECHA = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")  # Día anterior al actual
 
 HORARIOS = {
 
@@ -33,7 +31,7 @@ HORARIOS = {
     ],
 
     "miercoles": [
-        ("15:20", "15:55", "Prog. MultiM"),
+        ("15:00", "15:55", "Prog. MultiM"),
         ("15:55", "16:50", "Guardia"),
         ("16:50", "17:45", "Entornos DD"),
         ("18:15", "19:10", "Entornos DD"),
@@ -74,6 +72,17 @@ def dia_semana(fecha: datetime) -> str:
 # SCRIPT PRINCIPAL
 # =========================
 
+# Configurar argumentos de línea de comandos
+parser = argparse.ArgumentParser(description='Cargar horario en Bizneo para una fecha específica')
+parser.add_argument(
+    '--fecha',
+    type=str,
+    default=(datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
+    help='Fecha a procesar en formato AAAA-MM-DD (por defecto: día anterior)'
+)
+args = parser.parse_args()
+
+FECHA = args.fecha
 fecha_actual = datetime.strptime(FECHA, "%Y-%m-%d")
 dia = dia_semana(fecha_actual)
 
@@ -138,5 +147,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(3000)
 
     browser.close()
-# para ejecutar: python bizneo_cargar_dia_por_fecha.py
+# Para ejecutar:
+# python bizneo_cargar_dia_por_fecha.py                    # Procesa el día anterior
+# python bizneo_cargar_dia_por_fecha.py --fecha 2026-01-16  # Procesa una fecha específica
 # jsulbaran@ilerna.com
