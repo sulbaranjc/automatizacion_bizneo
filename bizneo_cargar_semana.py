@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright, expect
 from datetime import datetime, timedelta
 from pathlib import Path
+import argparse
 
 # =========================
 # CONFIGURACIÓN
@@ -9,7 +10,28 @@ from pathlib import Path
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
 SESSION_FILE = Path(__file__).parent / "session.json"
 
-FECHA_LUNES = "2026-01-12"  # YYYY-MM-DD (DEBE ser lunes)
+# =========================
+# ARGUMENTOS
+# =========================
+
+def lunes_de_la_semana_actual() -> str:
+    hoy = datetime.now()
+    lunes = hoy - timedelta(days=hoy.weekday())
+    return lunes.strftime("%Y-%m-%d")
+
+parser = argparse.ArgumentParser(description="Cargar semana completa en Bizneo")
+parser.add_argument(
+    "--lunes",
+    type=str,
+    default=lunes_de_la_semana_actual(),
+    help="Fecha del lunes de la semana a cargar en formato YYYY-MM-DD (por defecto: lunes de la semana actual)",
+)
+args = parser.parse_args()
+
+fecha_inicio = datetime.strptime(args.lunes, "%Y-%m-%d")
+if fecha_inicio.weekday() != 0:
+    print(f"⚠️  '{args.lunes}' no es lunes. Usa la fecha del lunes de la semana que quieres cargar.")
+    exit(1)
 
 HORARIOS = {
 
@@ -75,8 +97,7 @@ def dia_semana(fecha: datetime) -> str:
 # SCRIPT PRINCIPAL
 # =========================
 
-fecha_inicio = datetime.strptime(FECHA_LUNES, "%Y-%m-%d")
-print(f"📅 Cargando semana del {FECHA_LUNES}")
+print(f"📅 Cargando semana del {args.lunes}")
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
@@ -156,4 +177,4 @@ with sync_playwright() as p:
         page.wait_for_timeout(3_000)
 
     browser.close()
-    print(f"✅ Semana del {FECHA_LUNES} cargada correctamente.")
+    print(f"✅ Semana del {args.lunes} cargada correctamente.")
