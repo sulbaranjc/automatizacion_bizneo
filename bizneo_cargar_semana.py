@@ -1,11 +1,13 @@
 from playwright.sync_api import sync_playwright, expect
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # =========================
 # CONFIGURACIÓN
 # =========================
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
+SESSION_FILE = Path(__file__).parent / "session.json"
 
 FECHA_LUNES = "2026-01-12"  # YYYY-MM-DD (DEBE ser lunes)
 
@@ -74,14 +76,30 @@ def dia_semana(fecha: datetime) -> str:
 # =========================
 
 fecha_inicio = datetime.strptime(FECHA_LUNES, "%Y-%m-%d")
+print(f"📅 Cargando semana del {FECHA_LUNES}")
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
-    context = browser.new_context(permissions=[], geolocation=None)
+
+    ctx_opts = {"permissions": [], "geolocation": None}
+    if SESSION_FILE.exists():
+        ctx_opts["storage_state"] = str(SESSION_FILE)
+        print("🔑 Sesión guardada encontrada, intentando reutilizarla...")
+
+    context = browser.new_context(**ctx_opts)
     page = context.new_page()
 
     page.goto(URL)
-    page.wait_for_selector("tr[data-bulk-element]")
+
+    try:
+        page.wait_for_selector("tr[data-bulk-element]", timeout=6_000)
+        print("✅ Sesión activa.")
+    except Exception:
+        print("🔐 Sesión expirada o no encontrada.")
+        print("   Inicia sesión con Google en el navegador. Tienes 3 minutos...")
+        page.wait_for_selector("tr[data-bulk-element]", timeout=180_000)
+        context.storage_state(path=str(SESSION_FILE))
+        print(f"💾 Sesión guardada en {SESSION_FILE}")
 
     # Loop de lunes a viernes
     for offset in range(5):
@@ -92,7 +110,7 @@ with sync_playwright() as p:
         if dia not in HORARIOS:
             continue
 
-        print(f"Cargando {dia} {fecha_str}")
+        print(f"  → Cargando {dia} {fecha_str}")
 
         fila = page.locator(f'tr[data-bulk-element="{fecha_str}"]')
         expect(fila).to_be_visible()
@@ -113,8 +131,8 @@ with sync_playwright() as p:
                 page.wait_for_timeout(300)
 
             start = form.locator('input[name$="[start_at]"]').nth(i)
-            end = form.locator('input[name$="[end_at]"]').nth(i)
-            comm = form.locator('input[name$="[comment]"]').nth(i)
+            end   = form.locator('input[name$="[end_at]"]').nth(i)
+            comm  = form.locator('input[name$="[comment]"]').nth(i)
 
             start.click()
             start.press("Control+A")
@@ -130,13 +148,12 @@ with sync_playwright() as p:
             comm.fill(comentario)
             comm.blur()
 
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(1_000)
 
         page.locator("body").click()
         page.wait_for_timeout(800)
         page.get_by_role("button", name="Guardar").click()
-        page.wait_for_timeout(3000)
+        page.wait_for_timeout(3_000)
 
     browser.close()
-# para ejecutar: python bizneo_cargar_semana.py
-# jsulbaran@ilerna.com
+    print(f"✅ Semana del {FECHA_LUNES} cargada correctamente.")
