@@ -1,5 +1,6 @@
 from playwright.sync_api import sync_playwright, expect
 from datetime import datetime, timedelta
+from pathlib import Path
 import argparse
 
 # =========================
@@ -7,6 +8,7 @@ import argparse
 # =========================
 
 URL = "https://ilerna.bizneohr.com/time-attendance/my-logs/18043648"
+SESSION_FILE = Path(__file__).parent / "session.json"
 
 HORARIOS = {
 
@@ -69,16 +71,15 @@ def dia_semana(fecha: datetime) -> str:
     return dias[fecha.weekday()]
 
 # =========================
-# SCRIPT PRINCIPAL
+# ARGUMENTOS
 # =========================
 
-# Configurar argumentos de línea de comandos
-parser = argparse.ArgumentParser(description='Cargar horario en Bizneo para una fecha específica')
+parser = argparse.ArgumentParser(description="Cargar horario en Bizneo para una fecha específica")
 parser.add_argument(
-    '--fecha',
+    "--fecha",
     type=str,
     default=(datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-    help='Fecha a procesar en formato AAAA-MM-DD (por defecto: día anterior)'
+    help="Fecha a procesar en formato YYYY-MM-DD (por defecto: día anterior)",
 )
 args = parser.parse_args()
 
@@ -87,21 +88,42 @@ fecha_actual = datetime.strptime(FECHA, "%Y-%m-%d")
 dia = dia_semana(fecha_actual)
 
 if dia not in HORARIOS:
-    print(f"⚠️  No hay horario configurado para {dia}")
+    print(f"⚠️  No hay horario configurado para {dia} ({FECHA})")
     exit(1)
 
 tramos = HORARIOS[dia]
+print(f"📅 Cargando {dia} {FECHA} ({len(tramos)} tramos)")
 
-print(f"Cargando {dia} {FECHA}")
+# =========================
+# SCRIPT PRINCIPAL
+# =========================
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
-    context = browser.new_context(permissions=[], geolocation=None)
+
+    ctx_opts = {"permissions": [], "geolocation": None}
+    if SESSION_FILE.exists():
+        ctx_opts["storage_state"] = str(SESSION_FILE)
+        print("🔑 Sesión guardada encontrada, intentando reutilizarla...")
+
+    context = browser.new_context(**ctx_opts)
     page = context.new_page()
 
     page.goto(URL)
-    page.wait_for_selector("tr[data-bulk-element]")
 
+    # Comprobar si la sesión sigue activa (timeout corto intencionado)
+    try:
+        page.wait_for_selector("tr[data-bulk-element]", timeout=6_000)
+        print("✅ Sesión activa.")
+    except Exception:
+        print("🔐 Sesión expirada o no encontrada.")
+        print("   Inicia sesión con Google en el navegador. Tienes 3 minutos...")
+        # Esperar a que el usuario complete el login y llegue a la página de asistencia
+        page.wait_for_selector("tr[data-bulk-element]", timeout=180_000)
+        context.storage_state(path=str(SESSION_FILE))
+        print(f"💾 Sesión guardada en {SESSION_FILE}")
+
+    # Localizar y expandir la fila del día
     fila = page.locator(f'tr[data-bulk-element="{FECHA}"]')
     expect(fila).to_be_visible()
     fila.click()
@@ -119,10 +141,9 @@ with sync_playwright() as p:
             page.wait_for_timeout(300)
 
         start = form.locator('input[name$="[start_at]"]').nth(i)
-        end = form.locator('input[name$="[end_at]"]').nth(i)
-        comm = form.locator('input[name$="[comment]"]').nth(i)
+        end   = form.locator('input[name$="[end_at]"]').nth(i)
+        comm  = form.locator('input[name$="[comment]"]').nth(i)
 
-        # 🔑 Sobrescritura REAL
         start.click()
         start.press("Control+A")
         start.type(entrada)
@@ -137,17 +158,14 @@ with sync_playwright() as p:
         comm.fill(comentario)
         comm.blur()
 
-        page.wait_for_timeout(1000)
+        page.wait_for_timeout(1_000)
 
-    # Forzar validación final
+    # Forzar validación y guardar
     page.locator("body").click()
     page.wait_for_timeout(800)
 
     page.get_by_role("button", name="Guardar").click()
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(3_000)
 
     browser.close()
-# Para ejecutar:
-# python bizneo_cargar_dia_por_fecha.py                    # Procesa el día anterior
-# python bizneo_cargar_dia_por_fecha.py --fecha 2026-01-16  # Procesa una fecha específica
-# jsulbaran@ilerna.com
+    print(f"✅ {dia} {FECHA} cargado correctamente.")
