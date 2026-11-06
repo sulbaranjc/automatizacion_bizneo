@@ -30,7 +30,7 @@ cd /mnt/DocumentosJC/ILERNA/Hermamientas/automatizacion_bizneo
 
 Salida: `= ya correcto`, `→ <tramos>` + `✔ guardado`, `⚠ guardado pero revisar`, `✘ error`, `REVISAR` (horas sin horario esperado). Código de salida 1 si hubo errores.
 
-Alias sugerido (no creado todavía): `alias biz-registrar='.../.venv/bin/python .../bizneo_registrar_horario.py'`.
+Alias (creado el 06/11/2026 en `~/.bash_aliases`): `biz-registrar` → `.venv/bin/python bizneo_registrar_horario.py`. Ej.: `biz-registrar --desde 2026-11-01 --hasta 2026-11-30` (simula) y añadir `--aplicar` para escribir.
 
 ### Alcance y límites
 
@@ -71,7 +71,7 @@ Alias sugerido (no creado todavía): `alias biz-registrar='.../.venv/bin/python 
 | Mié 7, 14, 21, 28 | `08:30-14:30` / vacío | `13:35-14:30` + `15:55-21:00` (6:00), bal. 00:00 |
 
 Resultado: 18 días laborables a `00:00`, sin «Sobra tiempo»; 144 h 15 min registradas.
-**Pendiente:** jueves 8, 15, 22 y 29 tienen 6:00 registradas sin horario esperado (+6:00). Hay que borrarlas a mano (el script no borra).
+**Pendiente:** jueves 8, 15, 22 y 29 tenían 6:00 registradas sin horario esperado (+6:00). El usuario borró a mano uno (el 8); a 06/11 siguen 15, 22 y 29 (el script solo los avisa como `REVISAR`; el borrado lo hace el usuario).
 
 **Noviembre 2026** (hasta el 5/11): mié 4 → corregido el 2.º tramo, que estaba enlazado al turno «13:35 a 14:30» (causaba «Sobra tiempo» con balance 00:00); ahora `13:35-14:30` + `15:55-21:00`. Mar 3 ya estaba bien. Lun 2 (festivo Todos los Santos) y jue 5 sin registros. **Vie 6 sin registrar** (el día en curso no se carga por defecto).
 
@@ -85,4 +85,4 @@ Resultado: 18 días laborables a `00:00`, sin «Sobra tiempo»; 144 h 15 min reg
 
 ### Estado git
 
-Los cambios (`bizneo_registrar_horario.py` y este README) están en el directorio del repo **sin commit** a fecha 06/11/2026.
+Commit `d8bd48c` (06/11/2026) subido a https://github.com/sulbaranjc/automatizacion_bizneo (repo **público**; `session.json` y `.venv` están en `.gitignore` y nunca estuvieron en el historial).
