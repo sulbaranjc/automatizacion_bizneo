@@ -86,3 +86,34 @@ Resultado: 18 días laborables a `00:00`, sin «Sobra tiempo»; 144 h 15 min reg
 ### Estado git
 
 Commit `d8bd48c` (06/11/2026) subido a https://github.com/sulbaranjc/automatizacion_bizneo (repo **público**; `session.json` y `.venv` están en `.gitignore` y nunca estuvieron en el historial).
+
+### Ejecución automática diaria (desde 06/11/2026)
+
+Un temporizador de **systemd de usuario** lanza el script solo, sin Claude ni ventana:
+
+| Pieza | Detalle |
+|---|---|
+| `bizneo-registro.timer` | `~/.config/systemd/user/`; `OnCalendar=*-*-* 10:00:00`, **`Persistent=true`** |
+| `bizneo-registro.service` | `oneshot` → ejecuta `registro_diario.sh` |
+| `registro_diario.sh` | (en el repo) espera hasta 2 min a que haya red, bloquea ejecuciones simultáneas (`flock`), lanza `bizneo_registrar_horario.py --ultimos 4 --headless --aplicar` (timeout 15 min), escribe el log y notifica |
+| Log | `~/.local/state/bizneo/registro.log` (cada ejecución con fecha y `rc`) |
+| Estado | `~/.local/state/bizneo/ultima_ejecucion` (`fecha rc=N`) |
+
+**Comportamiento:**
+- A las 10:00 registra los **últimos 4 días hasta ayer**. Es idempotente: lo ya correcto se salta; fines de semana/festivos no registran nada.
+- **Si la laptop estaba apagada a las 10:00**, `Persistent=true` lanza la ejecución **automáticamente al encenderla** (y los 4 días de margen cubren un fin de semana entero apagada). No hace falta abrir Claude.
+- Notificación de escritorio: «horas registradas» (si guardó algo), «sesión caducada» (rc 2) o «error» (rc ≠ 0).
+- **Sesión caducada** en modo `--headless`: no espera login; sale con código 2 y `SESION_CADUCADA`. Solución: ejecutar `biz-registrar` (sin `--headless`) y hacer login con Google una vez.
+- Argumentos nuevos del script: `--headless` y `--ultimos N`.
+
+**Comandos útiles:**
+
+```bash
+systemctl --user list-timers bizneo-registro.timer     # próxima ejecución
+systemctl --user start bizneo-registro.service         # lanzarlo ya (prueba)
+tail -30 ~/.local/state/bizneo/registro.log            # ver qué hizo
+cat ~/.local/state/bizneo/ultima_ejecucion             # última ejecución y resultado
+systemctl --user disable --now bizneo-registro.timer   # desactivar
+```
+
+**Límites:** requiere la laptop encendida y la sesión de usuario iniciada (el temporizador es de usuario, sin `linger`). Pruebas del 06/11/2026: ejecución real vía systemd → rc 0 y log correcto; sesión falsa → rc 2 con mensaje. Primera ejecución programada: sábado 07/11/2026 10:00 (registra el viernes 06/11).

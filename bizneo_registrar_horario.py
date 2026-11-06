@@ -14,6 +14,7 @@ Ejemplos:
   biz-registrar --desde 2026-10-01 --hasta 2026-10-31            # simulación
   biz-registrar --desde 2026-10-01 --hasta 2026-10-31 --aplicar  # escribe
   biz-registrar --fecha 2026-11-06 --aplicar
+  biz-registrar --ultimos 4 --headless --aplicar                 # modo desatendido (temporizador)
 """
 import argparse
 import re
@@ -52,6 +53,8 @@ def parse_args():
     ap.add_argument("--fecha", help="un solo día (YYYY-MM-DD)")
     ap.add_argument("--desde", help="primer día del rango (YYYY-MM-DD)")
     ap.add_argument("--hasta", help="último día del rango (por defecto: ayer)")
+    ap.add_argument("--ultimos", type=int, metavar="N", help="los últimos N días hasta ayer (cubre días en que no se ejecutó)")
+    ap.add_argument("--headless", action="store_true", help="sin ventana; si la sesión caducó, termina con código 2 (uso desatendido)")
     ap.add_argument("--aplicar", action="store_true", help="guardar de verdad (sin esto solo simula)")
     a = ap.parse_args()
     ayer = date.today() - timedelta(days=1)
@@ -59,12 +62,21 @@ def parse_args():
         a.desde = a.hasta = a.fecha
     desde = datetime.strptime(a.desde, "%Y-%m-%d").date() if a.desde else ayer
     hasta = datetime.strptime(a.hasta, "%Y-%m-%d").date() if a.hasta else ayer
-    return desde, hasta, a.aplicar
+    if a.ultimos:
+        desde, hasta = date.today() - timedelta(days=a.ultimos), ayer
+    return desde, hasta, a.aplicar, a.headless
 
 
-def asegurar_sesion(p):
-    """Abre el navegador con la sesión guardada; si caducó, espera al login manual."""
-    browser = p.chromium.launch(headless=False)
+class SesionCaducada(Exception):
+    pass
+
+
+def asegurar_sesion(p, headless=False):
+    """Abre el navegador con la sesión guardada; si caducó, espera al login manual.
+
+    En modo headless no hay nadie para iniciar sesión: lanza SesionCaducada.
+    """
+    browser = p.chromium.launch(headless=headless)
     opts = {"storage_state": str(SESSION_FILE)} if SESSION_FILE.exists() else {}
     ctx = browser.new_context(**opts)
     page = ctx.new_page()
@@ -72,6 +84,9 @@ def asegurar_sesion(p):
     try:
         page.wait_for_selector("tr[data-bulk-element]", timeout=6000)
     except PWTimeout:
+        if headless:
+            browser.close()
+            raise SesionCaducada()
         print("Sesión caducada: inicia sesión con Google en la ventana (hasta 3 minutos)...")
         page.wait_for_selector("tr[data-bulk-element]", timeout=180_000)
     ctx.storage_state(path=str(SESSION_FILE))
@@ -151,13 +166,17 @@ def rellenar_dia(page, fecha, tramos):
 
 
 def main():
-    desde, hasta, aplicar = parse_args()
+    desde, hasta, aplicar, headless = parse_args()
     modo = "APLICAR (escribe en Bizneo)" if aplicar else "SIMULACIÓN (no escribe nada)"
     print(f"Rango {desde} → {hasta} · {modo}\n")
     resumen = {"ok": [], "saltado": [], "revisar": [], "error": []}
 
     with sync_playwright() as p:
-        browser, page = asegurar_sesion(p)
+        try:
+            browser, page = asegurar_sesion(p, headless)
+        except SesionCaducada:
+            print("SESION_CADUCADA: hay que iniciar sesión en Bizneo (ejecuta biz-registrar sin --headless).")
+            return 2
         mes_actual = None
         d = desde
         while d <= hasta:
