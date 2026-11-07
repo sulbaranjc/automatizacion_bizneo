@@ -18,8 +18,15 @@ for _ in $(seq 12); do
     sleep 10
 done
 
-SALIDA="$(timeout 900 "$DIR/.venv/bin/python" "$DIR/bizneo_registrar_horario.py" --ultimos 4 --headless --aplicar 2>&1)"
-RC=$?
+# Hasta 3 intentos (tras el arranque la red puede cambiar a mitad, p. ej. ERR_NETWORK_CHANGED).
+# La sesión caducada (rc 2) no se reintenta: no se arregla sola.
+for INTENTO in 1 2 3; do
+    SALIDA="$(timeout 900 "$DIR/.venv/bin/python" "$DIR/bizneo_registrar_horario.py" --ultimos 4 --headless --aplicar 2>&1)"
+    RC=$?
+    [ $RC -eq 0 ] || [ $RC -eq 2 ] && break
+    { echo "=== $(date '+%F %T') intento $INTENTO fallido (rc=$RC)"; echo "$SALIDA" | tail -3; } >> "$LOG"
+    [ $INTENTO -lt 3 ] && sleep 60
+done
 
 { echo "=== $(date '+%F %T') rc=$RC"; echo "$SALIDA"; echo; } >> "$LOG"
 echo "$(date '+%F %T') rc=$RC" > "$ESTADO/ultima_ejecucion"

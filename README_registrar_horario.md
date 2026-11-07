@@ -119,3 +119,5 @@ systemctl --user disable --now bizneo-registro.timer   # desactivar
 **Límites:** requiere la laptop encendida y la sesión de usuario iniciada (el temporizador es de usuario, sin `linger`). Pruebas del 06/11/2026: ejecución real vía systemd → rc 0 y log correcto; sesión falsa → rc 2 con mensaje. Primera ejecución programada: sábado 07/11/2026 10:00 (registra el viernes 06/11).
 
 **Septiembre 2026** (07/11/2026 sobre el 06/11): mismo problema que octubre (placeholders `08:30-14:30`); corregidos 18 días laborables a balance 00:00 sobrescribiendo (sin borrar). **Pendiente del usuario:** jueves 3, 10, 17 y 24 de septiembre tienen 6:00 sin horario esperado y hay que borrarlas a mano.
+
+**Reintentos (07/11/2026):** en el primer arranque real (laptop encendida a las 12:49, ejecución recuperada por `Persistent=true`) falló con `ERR_NETWORK_CHANGED` porque el Wi-Fi seguía conectándose; el vie 6 se registró relanzando a mano. Desde entonces `registro_diario.sh` hace hasta 3 intentos separados 60 s (no reintenta si la sesión caducó, rc 2).
